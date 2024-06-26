@@ -105,6 +105,10 @@ def parse_arguments():
 
 
 def main():
+    if subprocess.check_output('whoami', shell=True) != b'root\n':
+        print("This script must be run by root")
+        sys.exit(1)
+
     args = parse_arguments()
 
     try:

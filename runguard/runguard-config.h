@@ -13,6 +13,6 @@
 
 #define VALID_USERS "domjudge,jobe,jobe00,jobe01,jobe02,jobe03,jobe04,jobe05,jobe06,jobe07"
 
-#define CHROOT_PREFIX "/var/www/jobe/chrootjail"
+#define CHROOT_PREFIX "/home/jobe"
 
 #endif /* _RUNGUARD_CONFIG_ */
