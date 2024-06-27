@@ -1100,7 +1100,7 @@ def check_performance(lang):
     check_sustained_load(lang, best_rate)
 
 def add_chroot_param():
-    chroot_dir = 'tet'
+    chroot_dir = 'test'
 
     for test in TEST_SET:
         if 'parameters' in test:

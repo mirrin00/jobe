@@ -35,6 +35,12 @@ def make_chroot_dir(dir_name):
             run_command(f'mkdir "{chroot_dir_path}/files" && '
                         f'chown {JOBE_USER}:{WWW_GROUP} "{chroot_dir_path}/files" && '
                         f'chmod 771 "{chroot_dir_path}/files"')
+            run_command(f'mkdir "{chroot_dir_path}/proc" && '
+                        f'mount -t proc /proc "{chroot_dir_path}/proc"')
+            run_command(f'mkdir "{chroot_dir_path}/sys" && '
+                        f'mount -t sysfs /sys "{chroot_dir_path}/sys"')
+            run_command(f'mkdir "{chroot_dir_path}/dev" && '
+                        f'mount -t devtmpfs /dev "{chroot_dir_path}/dev"')
 
             for directory in chroot_dependencies:
                 target_dir = os.path.join(chroot_dir_path, directory.lstrip('/'))
