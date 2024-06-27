@@ -77,7 +77,7 @@ abstract class Task {
     public string $stderr = '';
     public int $result = Task::RESULT_INTERNAL_ERR;  // Should get overwritten
     public ?string $workdir = '';   // The temporary working directory created in constructor
-
+    public ?string $chroot_path = null;
 
     // ************************************************
     //   MAIN METHODS THAT HANDLE THE FLOW OF ONE JOB
@@ -107,7 +107,19 @@ abstract class Task {
     // to hoover up other students' submissions.
     public function prepare_execution_environment($sourceCode) {
         // Create the temporary directory that will be used.
-        $this->workdir = tempnam("/home/jobe/runs", "jobe_");
+
+        $defaultPrefix = "/home/jobe/runs";
+        $chroot_dir = isset($this->params['chroot_dir']) ? $this->params['chroot_dir'] : '';
+        if (!empty($chroot_dir) && is_string($chroot_dir)) {
+            $potentialPrefix = "/home/jobe/$chroot_dir/runs";
+
+            if (is_dir($potentialPrefix)) {
+                $defaultPrefix = $potentialPrefix;
+                $this->chroot_path = "/home/jobe/$chroot_dir";
+            }
+        }
+
+        $this->workdir = tempnam($defaultPrefix, "jobe_");
         if (!unlink($this->workdir) || !mkdir($this->workdir)) {
             log_message('error', 'LanguageTask constructor: error making temp directory');
             throw new Exception("Task: error making temp directory (race error?)");
@@ -309,6 +321,13 @@ abstract class Task {
         if ($memsize != 0) {  // Special case: Matlab won't run with a memsize set. TODO: WHY NOT!
             $sandboxCommandBits[] = "--memsize=$memsize";
         }
+        // execute in chroot jail if $chroot_dir is not emmpty
+        if ($this->chroot_path != null) {
+            $sandboxCommandBits[] = "--root=$this->chroot_path";
+            $jobe_dir_name = basename($this->workdir);
+            $wrappedCmd = "cd runs/$jobe_dir_name && " . $wrappedCmd;
+        }
+
         $sandboxCmd = implode(' ', $sandboxCommandBits) .
                 ' sh -c ' . escapeshellarg($wrappedCmd) . ' >prog.out 2>prog.err';
 
@@ -481,12 +500,14 @@ abstract class Task {
         if ($this->cmpinfo) {
             $this->result = Task::RESULT_COMPILATION_ERROR;
         }
+
         return new ResultObject(
                 $this->workdir,
                 $this->result,
                 $this->cmpinfo,
                 $this->filteredStdout(),
-                $this->filteredStderr()
+                $this->filteredStderr(),
+                $this->chroot_path == null ? null : basename($this->chroot_path)
         );
     }
 

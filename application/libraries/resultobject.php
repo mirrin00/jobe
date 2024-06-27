@@ -18,19 +18,22 @@ class ResultObject {
     public string $cmpinfo;
     public string $stdout;
     public string $stderr;
+    public ?string $chroot_dir;
 
     public function __construct(
             $run_id,
             $outcome,
             $cmpinfo='',
             $stdout='',
-            $stderr='')
+            $stderr='',
+            $chroot_dir=null)
     {
         $this->run_id = $run_id;   // A unique identifying string
         $this->outcome = $outcome; // Outcome of this job
         $this->cmpinfo = $this->clean($cmpinfo);
         $this->stdout = $this->clean($stdout);
         $this->stderr = $this->clean($stderr);
+        $this->chroot_dir = $chroot_dir == null ? null : $this->clean($chroot_dir);
     }
 
 
