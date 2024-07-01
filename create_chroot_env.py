@@ -20,6 +20,34 @@ def run_command(command):
         raise RuntimeError(f'Error executing command \'{command}\': {e}')
 
 
+def add_fstab_entry(source, target, fstype, options='defaults'):
+    entry = f'{source} {target} {fstype} {options} 0 0\n'
+    try:
+        with open('/etc/fstab', 'a') as fstab:
+            fstab.write(entry)
+    except FileNotFoundError:
+        print("/etc/fstab file not found")
+        raise
+    except Exception as e:
+        print(f"Failed to add fstab entry: {e}")
+        raise
+
+def remove_fstab_entry(target):
+    try:
+        with open('/etc/fstab', 'r') as fstab:
+            lines = fstab.readlines()
+        with open('/etc/fstab', 'w') as fstab:
+            for line in lines:
+                if f" {target} " not in line:
+                    fstab.write(line)
+    except FileNotFoundError:
+        print("/etc/fstab file not found")
+        raise
+    except Exception as e:
+        print(f"Failed to remove fstab entry: {e}")
+        raise
+
+
 def make_chroot_dir(dir_name):
     chroot_dir_path = os.path.join(JOBE_HOME_DIR, dir_name)
     if os.path.exists(chroot_dir_path):
@@ -35,25 +63,33 @@ def make_chroot_dir(dir_name):
             run_command(f'mkdir "{chroot_dir_path}/files" && '
                         f'chown {JOBE_USER}:{WWW_GROUP} "{chroot_dir_path}/files" && '
                         f'chmod 771 "{chroot_dir_path}/files"')
+
             run_command(f'mkdir "{chroot_dir_path}/proc" && '
                         f'mount -t proc /proc "{chroot_dir_path}/proc"')
+            add_fstab_entry('proc', f'{chroot_dir_path}/proc', 'proc')
+
             run_command(f'mkdir "{chroot_dir_path}/sys" && '
                         f'mount -t sysfs /sys "{chroot_dir_path}/sys"')
+            add_fstab_entry('sysfs', f'{chroot_dir_path}/sys', 'sysfs')
+
             run_command(f'mkdir "{chroot_dir_path}/dev" && '
                         f'mount -t devtmpfs /dev "{chroot_dir_path}/dev"')
+            add_fstab_entry('devtmpfs', f'{chroot_dir_path}/dev', 'devtmpfs')
 
             for directory in chroot_dependencies:
                 target_dir = os.path.join(chroot_dir_path, directory.lstrip('/'))
                 if os.path.exists(directory):
                     run_command(f'mkdir -p "{target_dir}"')
                     run_command(f'mount --bind -r "{directory}" "{target_dir}"')
+                    add_fstab_entry(directory, target_dir, 'none', 'bind,ro')
                 else:
                     print(f'Cannot mount to \'{target_dir}\'. Directory \'{directory}\' does not exist. There may be an error')
 
-        except RuntimeError:
+        except (RuntimeError, FileNotFoundError, Exception) as e:
             print(f'An error occurred while making chroot directory. Removing \'{chroot_dir_path}\'')
             remove_chroot_dir(dir_name)
-            raise
+            raise e
+
 
 
 def remove_chroot_dir(dir_name):
@@ -68,10 +104,11 @@ def remove_chroot_dir(dir_name):
 
             for mount_path in mount_paths:
                 run_command(f'umount "{mount_path}"')
+                remove_fstab_entry(mount_path)
 
             run_command(f'rm -rf "{chroot_dir_path}"')
-        except RuntimeError:
-            raise
+        except (RuntimeError, FileNotFoundError, Exception) as e:
+            raise e
 
 
 def list_chroot_directories():
