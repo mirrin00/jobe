@@ -26,20 +26,27 @@ class Cpp_Task extends Task {
     }
 
     public function compile() {
+        $cmd = $this->getCompileCmd();
+        list($output, $this->cmpinfo) = $this->run_in_sandbox($cmd);
+    }
+
+    public function getCompileCmd() {
         $src = basename($this->sourceFileName);
         $this->executableFileName = $execFileName = "$src.exe";
         $compileargs = $this->getParam('compileargs');
         $linkargs = $this->getParam('linkargs');
         $cmd = "g++ " . implode(' ', $compileargs) . " -o $execFileName $src " . implode(' ', $linkargs);
-        list($output, $this->cmpinfo) = $this->run_in_sandbox($cmd);
+        return $cmd;
     }
-
 
     // A default name for C++ programs
     public function defaultFileName($sourcecode) {
         return 'prog.cpp';
     }
 
+    public function defaultStudentFileName() {
+        return 'student.cpp';
+    }
 
     // The executable is the output from the compilation
     public function getExecutablePath() {

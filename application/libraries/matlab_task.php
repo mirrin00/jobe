@@ -39,9 +39,17 @@ class Matlab_Task extends Task {
         }
     }
 
+    public function getCompileCmd() {
+        return ""; // Language cannot be executed through python
+    }
+
     // A default name for Matlab programs
     public function defaultFileName($sourcecode) {
         return 'prog.m';
+    }
+
+    public function defaultStudentFileName() {
+        return 'student.m';
     }
 
     // Matlab throws in backspaces (grrr). There's also an extra BEL char

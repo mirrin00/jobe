@@ -39,12 +39,18 @@ class Php_Task extends Task {
         }
     }
 
+    public function getCompileCmd() {
+        return ""; // Language cannot be executed through python
+    }
 
     // A default name for PHP programs
     public function defaultFileName($sourcecode) {
         return 'prog.php';
     }
 
+    public function defaultStudentFileName() {
+        return 'student.php';
+    }
 
     public function getExecutablePath() {
         return '/usr/bin/php';

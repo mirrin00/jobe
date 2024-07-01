@@ -155,7 +155,6 @@ class Restapi extends REST_Controller {
         if (isset($run['sourcefilename']) && !self::is_valid_source_filename($run['sourcefilename'])) {
             $this->error('runs_post: invalid sourcefilename', 400);
         }
-
         // REST_Controller has called to_array on the JSON decoded
         // object, so we must first turn it back into an object.
         $run = (object) $run;
@@ -193,10 +192,52 @@ class Restapi extends REST_Controller {
 
         // Get the parameters, and validate.
         $params = isset($run->parameters) ? $run->parameters : array();
+        $this->log('info', var_export($params, true));
         $max_cpu_time = intval($CI->config->item('cputime_upper_limit_secs'));
         if (isset($params['cputime']) && intval($params['cputime']) > $max_cpu_time) {
             $this->response("cputime exceeds maximum allowed on this Jobe server ($max_cpu_time secs)", 400);
         }
+
+        // Get chroot directory name and check that the data is correct
+        if (array_key_exists("chroot_dir", $params)) {
+            $chroot_dir_name = $params['chroot_dir'];
+            if(!is_string($chroot_dir_name)) {
+                $this->error("runs_post: chroot_dir name must be a string", 400);
+            }
+
+            $chroot_dir_path = "/home/jobe/$chroot_dir_name/runs";
+
+            if (empty($chroot_dir_name) || !is_dir($chroot_dir_path)) {
+                $this->error("runs_post: chroot_dir does not exist", 400);
+            }
+
+            $no_runguard = isset($params['no_runguard']) ? $params['no_runguard'] : null;
+
+            if (isset($no_runguard)) {
+                if ($language != "python3") {
+                    $this->error("runs_post: language not supported with no_runguard param", 400);
+                }
+
+                $student_language = isset($no_runguard['language_id']) ? $no_runguard['language_id'] : null;
+
+                if (!isset($student_language)) {
+                    $this->error("runs_post: no_runguard was provided, but student language_id was not", 400);
+                }
+
+                if ($student_language !== "c" && $student_language  !== "python3" && $student_language  !== "cpp") {
+                    $this->error("runs_post: student code language does not exist or do not supported", 400);
+                }
+
+                $student_sourcefilename = isset($no_runguard['sourcefilename']) ? $no_runguard['sourcefilename'] : null;
+
+                if (isset($student_sourcefilename) && (!is_string($student_sourcefilename) || !self::is_valid_source_filename($student_sourcefilename))) {
+                    $this->error("runs_post: invalid student_sourcefilename", 400);
+                }
+            }
+        } else if(array_key_exists("no_runguard", $params)) {
+            $this->error("runs_post: runguard was provided, but chroot_dir was not", 400);
+        }
+
 
         // Debugging is set either via a config parameter or, for a
         // specific run, by the run's debug attribute.

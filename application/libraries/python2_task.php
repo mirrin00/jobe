@@ -28,10 +28,17 @@ class Python2_Task extends Task {
         return 'prog.py2';
     }
 
+    public function defaultStudentFileName() {
+        return 'student.py2';
+    }
+
     public function compile() {
         $this->executableFileName = $this->sourceFileName;
     }
 
+    public function getCompileCmd() {
+        return ""; // Language cannot be executed through python
+    }
 
     public function getExecutablePath() {
         return '/usr/bin/python2';

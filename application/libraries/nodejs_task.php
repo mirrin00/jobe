@@ -32,16 +32,22 @@ class Nodejs_Task extends Task {
         }
     }
 
+    public function getCompileCmd() {
+        return ""; // Language cannot be executed through python
+    }
 
     // A default name forjs programs
     public function defaultFileName($sourcecode) {
         return 'prog.js';
     }
 
+    public function defaultStudentFileName() {
+        return 'student.js';
+    }
+
     public function getExecutablePath() {
          return '/usr/bin/nodejs';
      }
-
 
      public function getTargetFile() {
          return $this->sourceFileName;

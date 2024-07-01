@@ -32,21 +32,28 @@ class Python3_Task extends Task {
     }
 
     public function compile() {
-        global $PYTHON3_VERSION;
-        $cmd = "$PYTHON3_VERSION -m py_compile {$this->sourceFileName}";
-        $this->executableFileName = $this->sourceFileName;
+        $cmd = $this->getCompileCmd();
         list($output, $this->cmpinfo) = $this->run_in_sandbox($cmd);
         if (!empty($this->cmpinfo) && !empty($output)) {
             $this->cmpinfo = $output . '\n' . $this->cmpinfo;
         }
     }
 
+    public function getCompileCmd() {
+        global $PYTHON3_VERSION;
+        $cmd = "$PYTHON3_VERSION -m py_compile {$this->sourceFileName}";
+        $this->executableFileName = $this->sourceFileName;
+        return $cmd;
+    }
 
     // A default name for Python3 programs
     public function defaultFileName($sourcecode) {
         return 'prog.py';
     }
 
+    public function defaultStudentFileName() {
+        return 'student.py';
+    }
 
     public function getExecutablePath() {
         global $PYTHON3_VERSION;

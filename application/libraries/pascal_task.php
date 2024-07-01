@@ -40,11 +40,18 @@ class Pascal_Task extends Task {
         }
     }
 
+    public function getCompileCmd() {
+        return ""; // Language cannot be executed through python
+    }
+
     // A default name for Pascal programs
     public function defaultFileName($sourcecode) {
         return 'prog.pas';
     }
 
+    public function defaultStudentFileName() {
+        return 'student.pas';
+    }
 
     // The executable is the output from the compilation
     public function getExecutablePath() {

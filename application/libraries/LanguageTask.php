@@ -12,6 +12,9 @@
  */
 
 require_once('application/libraries/resultobject.php');
+require_once('application/libraries/python3_task.php');
+require_once('application/libraries/c_task.php');
+require_once('application/libraries/cpp_task.php');
 
 define('ACTIVE_USERS', 1);  // The key for the shared memory active users array
 
@@ -108,18 +111,15 @@ abstract class Task {
     public function prepare_execution_environment($sourceCode) {
         // Create the temporary directory that will be used.
 
-        $defaultPrefix = "/home/jobe/runs";
-        $chroot_dir = isset($this->params['chroot_dir']) ? $this->params['chroot_dir'] : '';
-        if (!empty($chroot_dir) && is_string($chroot_dir)) {
-            $potentialPrefix = "/home/jobe/$chroot_dir/runs";
+        $runsDirPath = "/home/jobe/runs";
+        $chroot_dir = isset($this->params['chroot_dir']) ? $this->params['chroot_dir'] : null;
 
-            if (is_dir($potentialPrefix)) {
-                $defaultPrefix = $potentialPrefix;
-                $this->chroot_path = "/home/jobe/$chroot_dir";
-            }
+        if($chroot_dir) {
+            $this->chroot_path = "/home/jobe/$chroot_dir";
+            $runsDirPath = "/home/jobe/$chroot_dir/runs";
         }
 
-        $this->workdir = tempnam($defaultPrefix, "jobe_");
+        $this->workdir = tempnam($runsDirPath, "jobe_");
         if (!unlink($this->workdir) || !mkdir($this->workdir)) {
             log_message('error', 'LanguageTask constructor: error making temp directory');
             throw new Exception("Task: error making temp directory (race error?)");
@@ -152,10 +152,10 @@ abstract class Task {
             $filename = $file[1];
             $destPath = $this->workdir . '/' . $filename;
             if (!FileCache::file_exists($fileId) ||
-               ($contents = FileCache::file_get_contents($fileId)) === FALSE ||
-               (file_put_contents($destPath, $contents)) === FALSE) {
+                ($contents = FileCache::file_get_contents($fileId)) === FALSE ||
+                (file_put_contents($destPath, $contents)) === FALSE) {
                 throw new JobException('One or more of the specified files is missing/unavailable',
-                        'file(s) not found', 404);
+                    'file(s) not found', 404);
             }
         }
     }
@@ -198,7 +198,7 @@ abstract class Task {
 
         if ($deleteFiles && $this->workdir) {
             $dir = $this->workdir;
-            exec("sudo rm -R $dir");
+            //exec("sudo rm -R $dir");
             $this->workdir = null;
         }
     }
@@ -288,6 +288,41 @@ abstract class Task {
      * from running the given command.
      */
     public function run_in_sandbox($wrappedCmd, $iscompile=true, $stdin=null) {
+        /*
+         * If the no_runguard parameter is specified,
+         * then create a subtask and write compilation and launch commands to the appropriate files.
+         * These files should be launched via python3
+         * Else the whole program will be executed
+         */
+        if (isset($this->params['no_runguard']) && $this->params['no_runguard'] !== null && !$iscompile) {
+            $subtask = $this->makeSubtask();
+
+            $compileSubtaskCmd = $this->getSandboxCmd($subtask->getCompileCmd(),true,null, true);
+            file_put_contents('compile_student.cmd', $compileSubtaskCmd);
+
+            $executeSubtaskCmd = $this->getSandboxCmd(implode(' ', $subtask->getRunCommand()), false, $subtask->input, true);
+            file_put_contents('execute_student.cmd', $executeSubtaskCmd);
+
+            exec(implode(' ', $this->getRunCommand()) . ' >prog.out 2>prog.err');
+        } else {
+            $sandboxCmd = $this->getSandboxCmd($wrappedCmd, $iscompile, $stdin);
+            file_put_contents('prog.cmd', $sandboxCmd);
+            log_message('info', var_export($sandboxCmd, true));
+            exec('bash prog.cmd');
+        }
+
+
+        $output = file_get_contents("{$this->workdir}/prog.out");
+        if (file_exists("{$this->workdir}/prog.err")) {
+            $stderr = file_get_contents("{$this->workdir}/prog.err");
+        } else {
+            $stderr = '';
+        }
+        return array($output, $stderr);
+    }
+
+    // Returns the complete wrappedCmd run command in the sandbox (runguard.c)
+    protected function getSandboxCmd($wrappedCmd, $iscompile=true, $stdin=null, $isSubTask=false)  {
         global $CI;
 
         $filesize = 1000 * $this->getParam('disklimit', $iscompile); // MB -> kB
@@ -297,7 +332,7 @@ abstract class Task {
         $killtime = 2 * $cputime; // Kill the job after twice the allowed cpu time
         $numProcs = $this->getParam('numprocs', $iscompile) + 1; // The + 1 allows for the sh command below.
 
-        // CPU pinning - only active if enabled 
+        // CPU pinning - only active if enabled
         $sandboxCpuPinning = array();
         if($CI->config->item('cpu_pinning_enabled') == TRUE) {
             $taskset_core_id = intval($this->userId) % intval($CI->config->item('cpu_pinning_num_cores'));
@@ -305,15 +340,15 @@ abstract class Task {
         }
 
         $sandboxCommandBits = array(
-                "sudo " . dirname(__FILE__)  . "/../../runguard/runguard",
-                "--user={$this->user}",
-                "--group=jobe",
-                "--cputime=$cputime",      // Seconds of execution time allowed
-                "--time=$killtime",        // Wall clock kill time
-                "--filesize=$filesize",    // Max file sizes
-                "--nproc=$numProcs",       // Max num processes/threads for this *user*
-                "--no-core",
-                "--streamsize=$streamsize");   // Max stdout/stderr sizes
+            "sudo " . dirname(__FILE__)  . "/../../runguard/runguard",
+            "--user={$this->user}",
+            "--group=jobe",
+            "--cputime=$cputime",      // Seconds of execution time allowed
+            "--time=$killtime",        // Wall clock kill time
+            "--filesize=$filesize",    // Max file sizes
+            "--nproc=$numProcs",       // Max num processes/threads for this *user*
+            "--no-core",
+            "--streamsize=$streamsize");   // Max stdout/stderr sizes
 
         // Prepend CPU pinning command if enabled
         $sandboxCommandBits = array_merge($sandboxCpuPinning, $sandboxCommandBits);
@@ -326,10 +361,16 @@ abstract class Task {
             $sandboxCommandBits[] = "--root=$this->chroot_path";
             $jobe_dir_name = basename($this->workdir);
             $wrappedCmd = "cd runs/$jobe_dir_name && " . $wrappedCmd;
+            log_message('info', var_export($this->workdir, true));
         }
 
         $sandboxCmd = implode(' ', $sandboxCommandBits) .
-                ' sh -c ' . escapeshellarg($wrappedCmd) . ' >prog.out 2>prog.err';
+            ' sh -c ' . escapeshellarg($wrappedCmd);
+
+        if(!$isSubTask) {
+            $sandboxCmd .= ' >prog.out 2>prog.err';
+        }
+
 
         // CD into the work directory and run the job
         $workdir = $this->workdir;
@@ -345,18 +386,8 @@ abstract class Task {
             $sandboxCmd .= " </dev/null\n";
         }
 
-        file_put_contents('prog.cmd', $sandboxCmd);
-        exec('bash prog.cmd');
-
-        $output = file_get_contents("$workdir/prog.out");
-        if (file_exists("{$this->workdir}/prog.err")) {
-            $stderr = file_get_contents("{$this->workdir}/prog.err");
-        } else {
-            $stderr = '';
-        }
-        return array($output, $stderr);
+        return $sandboxCmd;
     }
-
 
     /*
      * Get the value of the job parameter $key, which is taken from the
@@ -382,12 +413,11 @@ abstract class Task {
         }
 
         if ($iscompile && $param != 0 && array_key_exists($key, $this->min_params_compile) &&
-                $this->min_params_compile[$key] > $param) {
+            $this->min_params_compile[$key] > $param) {
             $param = $this->min_params_compile[$key];
         }
         return $param;
     }
-
 
 
     // Check if PHP exec environment includes a PATH. If not, set up a
@@ -450,6 +480,11 @@ abstract class Task {
     // (usually just $this->executableFileName) for interpreted languages.
     public abstract function getTargetFile();
 
+    // Returns the complete compilation command
+    public abstract function getCompileCmd();
+
+    // Returns the standard name for the subtask
+    public abstract function defaultStudentFileName();
 
     // Override the following function if the output from executing a program
     // in this language needs post-filtering to remove stuff like
@@ -502,12 +537,12 @@ abstract class Task {
         }
 
         return new ResultObject(
-                $this->workdir,
-                $this->result,
-                $this->cmpinfo,
-                $this->filteredStdout(),
-                $this->filteredStderr(),
-                $this->chroot_path == null ? null : basename($this->chroot_path)
+            $this->workdir,
+            $this->result,
+            $this->cmpinfo,
+            $this->filteredStdout(),
+            $this->filteredStderr(),
+            $this->chroot_path == null ? null : basename($this->chroot_path)
         );
     }
 
@@ -521,6 +556,30 @@ abstract class Task {
         foreach($dirs as $dir) {
             exec("sudo /usr/bin/find $dir/ -user $user -delete");
         }
+    }
+
+    // Creates a task that will be executed via python3
+    protected function makeSubtask() {
+        $language = $this->params['no_runguard']["language_id"];
+        $TaskClass = ucwords($language) . '_Task';
+        $student_filename = isset($this->params['no_runguard']["sourcefilename"]) ? $this->params['no_runguard']["sourcefilename"] : '';
+        $student_input = isset($this->params['no_runguard']["input"]) ? $this->params['no_runguard']["input"] : '';
+
+
+        $subTask = new $TaskClass($student_filename, $student_input ,$this->params);
+
+        if(empty($subTask->sourceFileName)) {
+            log_message('info', var_export($subTask->sourceFileName, true));
+            log_message('info', var_export($subTask->defaultStudentFileName(), true));
+            $subTask->sourceFileName = $subTask->defaultStudentFileName();
+        }
+
+        $subTask->id = $this->id;
+        $subTask->userId = $this->userId;
+        $subTask->user = $this->user;
+        $subTask->workdir = $this->workdir;
+
+        return $subTask;
     }
 
     // ************************************************
@@ -559,4 +618,5 @@ abstract class Task {
             return $isMatch ? $matches[1] : "Unknown";
         }
     }
+
 }

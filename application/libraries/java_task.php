@@ -14,23 +14,23 @@ require_once('application/libraries/LanguageTask.php');
 
 class Java_Task extends Task {
     public string $mainClassName;
-    
+
     public function __construct($filename, $input, $params) {
         global $CI;
 
         $params['memorylimit'] = 0;    // Disregard memory limit - let JVM manage memory
         $this->default_params['numprocs'] = 256;     // Java 8 wants lots of processes
         $this->default_params['interpreterargs'] = array(
-             "-Xrs",   //  reduces usage signals by java, because that generates debug
-                       //  output when program is terminated on timelimit exceeded.
-             "-Xss8m",
-             "-Xmx200m"
+            "-Xrs",   //  reduces usage signals by java, because that generates debug
+                      //  output when program is terminated on timelimit exceeded.
+            "-Xss8m",
+            "-Xmx200m"
         );
         $this->default_params['main_class'] = null;
 
         // Extra global Java arguments
         if($CI->config->item('java_extraflags') != '') {
-            array_push($this->default_params['interpreterargs'], $CI->config->item('java_extraflags')); 
+            array_push($this->default_params['interpreterargs'], $CI->config->item('java_extraflags'));
         }
 
         if (isset($params['numprocs']) && $params['numprocs'] < 256) {
@@ -68,6 +68,10 @@ class Java_Task extends Task {
         }
     }
 
+    public function getCompileCmd() {
+        return ""; // Language cannot be executed through python
+    }
+
     // A default name for Java programs. [Called only if API-call does
     // not provide a filename. As a side effect, also set the mainClassName.
     public function defaultFileName($sourcecode) {
@@ -84,6 +88,9 @@ class Java_Task extends Task {
         return '/usr/bin/java';
     }
 
+    public function defaultStudentFileName() {
+        return 'student.java';
+    }
 
 
     public function getTargetFile() {

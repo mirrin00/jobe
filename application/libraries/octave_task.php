@@ -34,6 +34,14 @@ class Octave_Task extends Task {
         }
     }
 
+    public function getCompileCmd() {
+        return ""; // Language cannot be executed through python
+    }
+
+    public function defaultStudentFileName() {
+        return 'student.m';
+    }
+
     // A default name for Octave programs
     public function defaultFileName($sourcecode) {
         return 'prog.m';
