@@ -1,9 +1,7 @@
 import requests
 import unittest
-import sys
-import os
 
-URL = "http://192.168.0.19/jobe/index.php/restapi/runs"
+URL = "http://localhost/jobe/index.php/restapi/runs"
 
 
 class TestChrootFeature(unittest.TestCase):

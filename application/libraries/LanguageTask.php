@@ -198,7 +198,7 @@ abstract class Task {
 
         if ($deleteFiles && $this->workdir) {
             $dir = $this->workdir;
-            //exec("sudo rm -R $dir");
+            exec("sudo rm -R $dir");
             $this->workdir = null;
         }
     }

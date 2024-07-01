@@ -21,7 +21,7 @@ RUN apt-get update && \
         sqlite3
 
 RUN apt-get install -y --no-install-suggests --no-install-recommends  octave
-RUN python3 -m pip install pylint
+RUN python3 -m pip install pylint requests
 RUN pylint --reports=no --score=n --generate-rcfile > /etc/pylintrc
 
 RUN sed -i 's/export LANG=C/export LANG=C.UTF-8/' /etc/apache2/envvars
