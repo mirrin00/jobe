@@ -35,6 +35,8 @@ RUN service apache2 start && \
     cd /var/www/html/jobe && \
     ./install
 
+RUN echo "www-data ALL=(root) NOPASSWD: /bin/rm -R /home/jobe/*/runs/*" >> /etc/sudoers.d/jobe-sudoers
+
 RUN service apache2 restart
 
 EXPOSE 80
