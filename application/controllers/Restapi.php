@@ -233,6 +233,24 @@ class Restapi extends REST_Controller {
                 if (isset($student_sourcefilename) && (!is_string($student_sourcefilename) || !self::is_valid_source_filename($student_sourcefilename))) {
                     $this->error("runs_post: invalid student_sourcefilename", 400);
                 }
+
+                $disklimit = isset($no_runguard['disklimit']) ? $no_runguard['disklimit'] : null;
+
+                if (isset($disklimit) && !self::is_non_negative_integer($disklimit)) {
+                    $this->error("runs_post: disklimit should be a non-negative integer", 400);
+                }
+
+                $memorylimit = isset($no_runguard['memorylimit']) ? $no_runguard['memorylimit'] : null;
+
+                if (isset($memorylimit) && !self::is_non_negative_integer($memorylimit)) {
+                    $this->error("runs_post: memorylimit should be a non-negative integer", 400);
+                }
+
+                $cputime = isset($no_runguard['cputime']) ? $no_runguard['cputime'] : null;
+
+                if (isset($cputime) && !self::is_non_negative_integer($cputime)) {
+                    $this->error("runs_post: cputime should be a non-negative integer", 400);
+                }
             }
         } else if(array_key_exists("no_runguard", $params)) {
             $this->error("runs_post: runguard was provided, but chroot_dir was not", 400);
@@ -395,5 +413,13 @@ class Restapi extends REST_Controller {
      */
     private function get_path_for_language_task($lang) {
         return 'application/libraries/' . $lang . '_task.php';
+    }
+
+    private function is_non_negative_integer($value) {
+        if (filter_var($value, FILTER_VALIDATE_INT)) {
+            $int_value = (int) $value;
+            return $int_value >= 0;
+        }
+        return false;
     }
 }

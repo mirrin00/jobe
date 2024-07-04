@@ -51,6 +51,12 @@ abstract class Task {
         'runargs'       => array()
     );
 
+    public $default_norunguard_params = array(
+        'disklimit'     => 200, // MB
+        'cputime'    => 120, // secs
+        'memorylimit'  => 1000 // MB
+    );
+
 
     // Global minima settings for runguard sandbox when compiling.
     // These override the default and task specific settings when a task
@@ -291,8 +297,8 @@ abstract class Task {
         /*
          * If the no_runguard parameter is specified,
          * then create a subtask and write compilation and launch commands to the appropriate files.
-         * These files should be launched via python3
-         * Else the whole program will be executed
+         * These scripts should be launched via python3
+         * Else the whole program will execute
          */
         if (isset($this->params['no_runguard']) && $this->params['no_runguard'] !== null && !$iscompile) {
             $subtask = $this->makeSubtask();
@@ -303,7 +309,9 @@ abstract class Task {
             $executeSubtaskCmd = $this->getSandboxCmd(implode(' ', $subtask->getRunCommand()), false, $subtask->input, true);
             file_put_contents('execute_student.cmd', $executeSubtaskCmd);
 
-            exec(implode(' ', $this->getRunCommand()) . ' >prog.out 2>prog.err');
+            $noRunguardExecuteCmd = $this->getNoRunguardCmd();
+            file_put_contents('prog.cmd', $noRunguardExecuteCmd);
+            exec('bash prog.cmd >prog.out 2>prog.err');
         } else {
             $sandboxCmd = $this->getSandboxCmd($wrappedCmd, $iscompile, $stdin);
             file_put_contents('prog.cmd', $sandboxCmd);
@@ -321,7 +329,25 @@ abstract class Task {
         return array($output, $stderr);
     }
 
-    // Returns the complete wrappedCmd run command in the sandbox (runguard.c)
+    protected function getNoRunguardCmd() {
+
+        $filesize = isset($this->params['no_runguard']['disklimit']) ? 1024 * $this->params['no_runguard']['disklimit'] : 1024 * $this->default_norunguard_params['disklimit']; // MB -> kB
+        $memsize = isset($this->params['no_runguard']['memorylimit']) ? 1024 * $this->params['no_runguard']['memorylimit'] : 1024 * $this->default_norunguard_params['memorylimit']; // MB -> kB
+        $cputime = isset($this->params['no_runguard']['cputime']) ? $this->params['no_runguard']['cputime'] : $this->default_norunguard_params['cputime'];
+
+        $sandboxCommandBits = array(
+            "ulimit -t $cputime",
+            "ulimit -v $memsize",
+            "ulimit -f $filesize",
+            "ulimit -c 0"
+        );
+
+        $sandboxCmd = implode("\n", $sandboxCommandBits) . "\n"
+            . implode(' ', $this->getRunCommand());
+
+        return $sandboxCmd;
+    }
+
     protected function getSandboxCmd($wrappedCmd, $iscompile=true, $stdin=null, $isSubTask=false)  {
         global $CI;
 
@@ -558,7 +584,7 @@ abstract class Task {
         }
     }
 
-    // Creates a task that will be executed via python3
+    // Creates a task that will execute via python3
     protected function makeSubtask() {
         $language = $this->params['no_runguard']["language_id"];
         $TaskClass = ucwords($language) . '_Task';
