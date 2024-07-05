@@ -297,3 +297,207 @@ class TestChrootFeature(unittest.TestCase):
 
 		self.assertEqual(response.status_code, 400)
 		self.assertEqual(response.json(), "runs_post: chroot_dir name must be a string")
+
+	def test_cputime_param(self):
+		"""
+		Endless program that runs student program.
+		Stops after 2 seconds
+		"""
+
+		data = {
+			"run_spec": {
+				"language_id": "python3",
+				"sourcecode": "import os, subprocess, sys\n\n__student_answer__ = \"\"\"def sqr(n):\r\n    return n * n\r\n\r\n\"\"\"\n\n\n__student_answer__ += \"\"\"\nprint(sqr(10))\n\"\"\"\n__student_answer__ += \"\"\"\nprint('#<ab@17943918#@>#')\n\"\"\"\n__student_answer__ += \"\"\"\nprint(sqr(5))\n\"\"\"\n\nwhile True:\n    pass\n\nwith open(\"student.py\", \"w\") as stud_ans:\n    print(__student_answer__, file=stud_ans);\n\ncurrent_directory = os.getcwd()\n\nwith open(\"student.py\", \"a\") as stud_ans:\n    print(f\"#Current directory: {current_directory}\", file=stud_ans);\n\nreturn_code = 0\n\n\nreturn_code = subprocess.run([\"bash\", \"compile_student.cmd\"], check=True)\n\nif  return_code != 0:\n    subprocess.run([\"bash\", \"execute_student.cmd\"])",
+				"sourcefilename": "__tester__.python3",
+				"input": "",
+				"file_list": [],
+				"parameters": {
+					"chroot_dir": "test",
+					"no_runguard": {
+						"language_id": "python3",
+						"cputime": 2
+					}
+				}
+			}
+		}
+
+		response = requests.post(URL, json=data)
+
+		self.assertEqual(response.status_code, 200)
+		self.assertEqual(response.json()['outcome'], 12)
+		self.assertEqual(response.json()['chroot_dir'], "test")
+
+	def test_incorrect_cputime_param(self):
+		"""
+		A cputime parameter should be non-negative integer.
+		There is decimal
+		"""
+
+		data = {
+			"run_spec": {
+				"language_id": "python3",
+				"sourcecode": "import os, subprocess, sys\n\n__student_answer__ = \"\"\"def sqr(n):\r\n    return n * n\r\n\r\n\"\"\"\n\n\n__student_answer__ += \"\"\"\nprint(sqr(10))\n\"\"\"\n__student_answer__ += \"\"\"\nprint('#<ab@17943918#@>#')\n\"\"\"\n__student_answer__ += \"\"\"\nprint(sqr(5))\n\"\"\"\n\nwhile True:\n    pass\n\nwith open(\"student.py\", \"w\") as stud_ans:\n    print(__student_answer__, file=stud_ans);\n\ncurrent_directory = os.getcwd()\n\nwith open(\"student.py\", \"a\") as stud_ans:\n    print(f\"#Current directory: {current_directory}\", file=stud_ans);\n\nreturn_code = 0\n\n\nreturn_code = subprocess.run([\"bash\", \"compile_student.cmd\"], check=True)\n\nif  return_code != 0:\n    subprocess.run([\"bash\", \"execute_student.cmd\"])",
+				"sourcefilename": "__tester__.python3",
+				"input": "",
+				"file_list": [],
+				"parameters": {
+					"chroot_dir": "test",
+					"no_runguard": {
+						"language_id": "python3",
+						"cputime": "3.14"
+					}
+				}
+			}
+		}
+
+		response = requests.post(URL, json=data)
+		self.assertEqual(response.status_code, 400)
+		self.assertEqual(response.json(), "runs_post: cputime should be a non-negative integer")
+
+	def test_memorylimit_param(self):
+		"""
+		A program that uses too much memory (creates an array of size 10**6 elements).
+		Memory limit param forces program to terminate execution
+		"""
+
+		data = {
+			"run_spec": {
+				"language_id": "python3",
+				"sourcecode": "import os, subprocess\n\n__student_answer__ = \"\"\"def sqr(n):\r\n    return n * n\r\n\r\n\"\"\"\n\n\n__student_answer__ += \"\"\"\nprint(sqr(10))\n\"\"\"\n__student_answer__ += \"\"\"\nprint('#<ab@17943918#@>#')\n\"\"\"\n__student_answer__ += \"\"\"\nprint(sqr(5))\n\"\"\"\n\nsize = 10**6  \n\nlist = [i for i in range(size)]\n\nwith open(\"student.py\", \"w\") as stud_ans:\n    print(__student_answer__, file=stud_ans);\n\ncurrent_directory = os.getcwd()\n\nwith open(\"student.py\", \"a\") as stud_ans:\n    print(f\"#Current directory: {current_directory}\", file=stud_ans);\n\nreturn_code = 0\n\n\nreturn_code = subprocess.run([\"bash\", \"compile_student.cmd\"], check=True)\n\nif  return_code != 0:\n    subprocess.run([\"bash\", \"execute_student.cmd\"])",
+				"sourcefilename": "__tester__.python3",
+				"input": "",
+				"file_list": [],
+				"parameters": {
+					"chroot_dir": "test",
+					"no_runguard": {
+						"language_id": "python3",
+						"memorylimit": "30"
+					}
+				}
+			}
+		}
+
+		response = requests.post(URL, json=data)
+
+		self.assertEqual(response.status_code, 200)
+		self.assertEqual(response.json()['outcome'], 12)
+		# Too long stderr, prints MemoryError
+		#print(response.json()['stderr'])
+
+	def test_incorrect_memorylimit_param(self):
+		"""
+		A memorylimit parameter should be non-negative integer.
+		There is string
+		"""
+
+		data = {
+			"run_spec": {
+				"language_id": "python3",
+				"sourcecode": "import os, subprocess, sys\n\n__student_answer__ = \"\"\"def sqr(n):\r\n    return n * n\r\n\r\n\"\"\"\n\n\n__student_answer__ += \"\"\"\nprint(sqr(10))\n\"\"\"\n__student_answer__ += \"\"\"\nprint('#<ab@17943918#@>#')\n\"\"\"\n__student_answer__ += \"\"\"\nprint(sqr(5))\n\"\"\"\n\nwhile True:\n    pass\n\nwith open(\"student.py\", \"w\") as stud_ans:\n    print(__student_answer__, file=stud_ans);\n\ncurrent_directory = os.getcwd()\n\nwith open(\"student.py\", \"a\") as stud_ans:\n    print(f\"#Current directory: {current_directory}\", file=stud_ans);\n\nreturn_code = 0\n\n\nreturn_code = subprocess.run([\"bash\", \"compile_student.cmd\"], check=True)\n\nif  return_code != 0:\n    subprocess.run([\"bash\", \"execute_student.cmd\"])",
+				"sourcefilename": "__tester__.python3",
+				"input": "",
+				"file_list": [],
+				"parameters": {
+					"chroot_dir": "test",
+					"no_runguard": {
+						"language_id": "python3",
+						"memorylimit": "dasdsa"
+					}
+				}
+			}
+		}
+
+		response = requests.post(URL, json=data)
+		self.assertEqual(response.status_code, 400)
+		self.assertEqual(response.json(), "runs_post: memorylimit should be a non-negative integer")
+
+
+	def test_disklimit_param_1(self):
+		"""
+		Test a program that writes (1 MB + 1 byte) to a file.
+		But disklimit param allows to write only 1 MB
+		Returns runtime error
+		"""
+
+		data = {
+			"run_spec": {
+				"language_id": "python3",
+				"sourcecode": "file_size = 1 * 1024 * 1024 + 1\n\nfile_name = \"file.txt\"\n\nwith open(file_name, \"wb\") as file:\n    file.write(b'\\0' * file_size)\n",
+				"sourcefilename": "__tester__.python3",
+				"input": "",
+				"file_list": [],
+				"parameters": {
+					"chroot_dir": "test",
+					"no_runguard": {
+						"language_id": "python3",
+						"disklimit": 1
+					}
+				}
+			}
+		}
+
+		response = requests.post(URL, json=data)
+
+		self.assertEqual(response.status_code, 200)
+		self.assertEqual(response.json()['outcome'], 12)
+		# Too long stderr, prints File too large
+		#print(response.json()['stderr'])
+
+
+	def test_disklimit_param_2(self):
+		"""
+		Copy of previous program, but writes 1 MB to a file.
+		Disklimit param allows to write 1 MB
+		That program works correctly.
+		Response 'outcome' field contains 15 code (success)
+		"""
+
+		data = {
+			"run_spec": {
+				"language_id": "python3",
+				"sourcecode": "file_size = 1 * 1024 * 1024\n\nfile_name = \"file.txt\"\n\nwith open(file_name, \"wb\") as file:\n    file.write(b'\\0' * file_size)\n",
+				"sourcefilename": "__tester__.python3",
+				"input": "",
+				"file_list": [],
+				"parameters": {
+					"chroot_dir": "test",
+					"no_runguard": {
+						"language_id": "python3",
+						"disklimit": 1
+					}
+				}
+			}
+		}
+
+		response = requests.post(URL, json=data)
+
+		self.assertEqual(response.status_code, 200)
+		self.assertEqual(response.json()['outcome'], 15)
+
+	def test_incorrect_disklimit_param(self):
+		"""
+		A disklimit parameter should be non-negative integer.
+		There is string
+		"""
+
+		data = {
+			"run_spec": {
+				"language_id": "python3",
+				"sourcecode": "import os, subprocess, sys\n\n__student_answer__ = \"\"\"def sqr(n):\r\n    return n * n\r\n\r\n\"\"\"\n\n\n__student_answer__ += \"\"\"\nprint(sqr(10))\n\"\"\"\n__student_answer__ += \"\"\"\nprint('#<ab@17943918#@>#')\n\"\"\"\n__student_answer__ += \"\"\"\nprint(sqr(5))\n\"\"\"\n\nwhile True:\n    pass\n\nwith open(\"student.py\", \"w\") as stud_ans:\n    print(__student_answer__, file=stud_ans);\n\ncurrent_directory = os.getcwd()\n\nwith open(\"student.py\", \"a\") as stud_ans:\n    print(f\"#Current directory: {current_directory}\", file=stud_ans);\n\nreturn_code = 0\n\n\nreturn_code = subprocess.run([\"bash\", \"compile_student.cmd\"], check=True)\n\nif  return_code != 0:\n    subprocess.run([\"bash\", \"execute_student.cmd\"])",
+				"sourcefilename": "__tester__.python3",
+				"input": "",
+				"file_list": [],
+				"parameters": {
+					"chroot_dir": "test",
+					"no_runguard": {
+						"language_id": "python3",
+						"disklimit": "3.14r9sa9u"
+					}
+				}
+			}
+		}
+
+		response = requests.post(URL, json=data)
+		self.assertEqual(response.status_code, 400)
+		self.assertEqual(response.json(), "runs_post: disklimit should be a non-negative integer")
+
