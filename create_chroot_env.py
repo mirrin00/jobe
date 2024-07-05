@@ -10,9 +10,12 @@ JOBE_USER = 'jobe'
 JOBE_GROUP = 'jobe'
 WWW_GROUP = 'www-data'
 list_ignore = ['files', 'runs']
-chroot_mount_dependencies = ['/bin', '/lib', '/usr/lib', '/usr/lib64', '/usr/bin', '/usr/include', '/usr/share', '/lib64', '/etc/alternatives', '/etc/python3', '/etc/java-11-openjdk', '/etc/php']
+
+# directories for mount
+chroot_mount_dependencies = ['/bin', '/lib', '/usr/lib', '/usr/lib64', '/usr/bin', '/usr/include', '/usr/share', '/usr/local', '/lib64', '/etc/alternatives', '/etc/python3', '/etc/java-11-openjdk', '/etc/php']
+
+# files for copy
 chroot_files_dependencies = ['/dev/null', '/etc/octaverc', '/etc/pylintrc', '/etc/fpc.cfg', '/etc/fpc-3.2.2.cfg', '/etc/passwd']
-chroot_dir_dependencies = []
 
 def run_command(command):
     try:
