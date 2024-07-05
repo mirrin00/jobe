@@ -10,8 +10,9 @@ JOBE_USER = 'jobe'
 JOBE_GROUP = 'jobe'
 WWW_GROUP = 'www-data'
 list_ignore = ['files', 'runs']
-chroot_dependencies = ['/bin', '/lib', '/lib64', '/usr', '/etc']
-
+chroot_mount_dependencies = ['/bin', '/lib', '/usr/lib', '/usr/lib64', '/usr/bin', '/usr/include', '/usr/share', '/lib64', '/etc/alternatives', '/etc/python3', '/etc/java-11-openjdk', '/etc/php']
+chroot_files_dependencies = ['/dev/null', '/etc/octaverc', '/etc/pylintrc', '/etc/fpc.cfg', '/etc/fpc-3.2.2.cfg', '/etc/passwd']
+chroot_dir_dependencies = []
 
 def run_command(command):
     try:
@@ -54,6 +55,9 @@ def make_chroot_dir(dir_name):
         print(f'Directory \'{chroot_dir_path}\' already exists. Cannot create.')
     else:
         try:
+            # Only for java
+            run_command(f"ln -sf /usr/lib/jvm/java-11-openjdk-amd64/lib/jli/libjli.so /usr/lib/x86_64-linux-gnu/libjli.so")
+
             run_command(f'mkdir "{chroot_dir_path}" && '
                         f'chown {JOBE_USER}:{JOBE_GROUP} "{chroot_dir_path}" && '
                         f'chmod 751 "{chroot_dir_path}"')
@@ -63,24 +67,32 @@ def make_chroot_dir(dir_name):
             run_command(f'mkdir "{chroot_dir_path}/files" && '
                         f'chown {JOBE_USER}:{WWW_GROUP} "{chroot_dir_path}/files" && '
                         f'chmod 771 "{chroot_dir_path}/files"')
-
+            """
             run_command(f'mkdir "{chroot_dir_path}/proc" && '
                         f'mount -t proc /proc "{chroot_dir_path}/proc"')
             add_fstab_entry('proc', f'{chroot_dir_path}/proc', 'proc')
 
-            run_command(f'mkdir "{chroot_dir_path}/sys" && '
-                        f'mount -t sysfs /sys "{chroot_dir_path}/sys"')
-            add_fstab_entry('sysfs', f'{chroot_dir_path}/sys', 'sysfs')
-
             run_command(f'mkdir "{chroot_dir_path}/dev" && '
                         f'mount -t devtmpfs /dev "{chroot_dir_path}/dev"')
             add_fstab_entry('devtmpfs', f'{chroot_dir_path}/dev', 'devtmpfs')
+            
+            run_command(f'mkdir "{chroot_dir_path}/sys" && '
+                        f'mount -t sysfs /sys "{chroot_dir_path}/sys"')
+            add_fstab_entry('sysfs', f'{chroot_dir_path}/sys', 'sysfs')
+            """
 
-            for directory in chroot_dependencies:
+            for file in chroot_files_dependencies:
+                target_file = os.path.join(chroot_dir_path, file.lstrip('/'))
+                if os.path.exists(file):
+                    run_command(f'mkdir -p "{os.path.dirname(target_file)}" && cp {file} {target_file}')
+                else:
+                    print(f'Cannot copy \'{target_file}\'. Directory \'{directory}\' does not exist. There may be an error')
+
+            for directory in chroot_mount_dependencies:
                 target_dir = os.path.join(chroot_dir_path, directory.lstrip('/'))
                 if os.path.exists(directory):
                     run_command(f'mkdir -p "{target_dir}"')
-                    run_command(f'mount --bind -r "{directory}" "{target_dir}"')
+                    run_command(f'mount --bind "{directory}" "{target_dir}"')
                     add_fstab_entry(directory, target_dir, 'none', 'bind,ro')
                 else:
                     print(f'Cannot mount to \'{target_dir}\'. Directory \'{directory}\' does not exist. There may be an error')
@@ -89,7 +101,6 @@ def make_chroot_dir(dir_name):
             print(f'An error occurred while making chroot directory. Removing \'{chroot_dir_path}\'')
             remove_chroot_dir(dir_name)
             raise e
-
 
 
 def remove_chroot_dir(dir_name):
