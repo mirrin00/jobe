@@ -15,7 +15,7 @@ list_ignore = ['files', 'runs']
 chroot_mount_dependencies = ['/bin', '/lib', '/usr/lib', '/usr/lib64', '/usr/bin', '/usr/include', '/usr/share', '/usr/local', '/lib64', '/etc/alternatives', '/etc/python3', '/etc/java-11-openjdk', '/etc/php']
 
 # files for copy
-chroot_files_dependencies = ['/dev/null', '/etc/octaverc', '/etc/pylintrc', '/etc/fpc.cfg', '/etc/fpc-3.2.2.cfg', '/etc/passwd']
+chroot_files_dependencies = ['/etc/octaverc', '/etc/pylintrc', '/etc/fpc.cfg', '/etc/fpc-3.2.2.cfg']
 
 def run_command(command):
     try:
@@ -83,6 +83,8 @@ def make_chroot_dir(dir_name):
                         f'mount -t sysfs /sys "{chroot_dir_path}/sys"')
             add_fstab_entry('sysfs', f'{chroot_dir_path}/sys', 'sysfs')
             """
+
+            run_command(f'mkdir -p "{chroot_dir_path}/dev" && mknod -m 666 "{chroot_dir_path}/dev/null" c 1 3')
 
             for file in chroot_files_dependencies:
                 target_file = os.path.join(chroot_dir_path, file.lstrip('/'))
