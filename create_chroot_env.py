@@ -97,7 +97,7 @@ def make_chroot_dir(dir_name):
                 target_dir = os.path.join(chroot_dir_path, directory.lstrip('/'))
                 if os.path.exists(directory):
                     run_command(f'mkdir -p "{target_dir}"')
-                    run_command(f'mount --bind "{directory}" "{target_dir}"')
+                    run_command(f'mount --bind -r "{directory}" "{target_dir}"')
                     add_fstab_entry(directory, target_dir, 'none', 'bind,ro')
                 else:
                     print(f'Cannot mount to \'{target_dir}\'. Directory \'{directory}\' does not exist. There may be an error')
